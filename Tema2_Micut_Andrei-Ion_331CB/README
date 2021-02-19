@@ -1,0 +1,86 @@
+Micut Andrei-Ion
+Grupa 331CB
+
+									Traffic simulator
+									     ~Tema2~				
+
+Problema 1 (simple_semaphore) :
+
+ - Un simplu sleep natural, masinile intrau in sens, stateau timpul dat si ieseau
+
+
+Problema 2 (simple_n_roundabout) :
+- Contorizez numarul de masini intrate in sens intr un bloc sincronizat, daca s-a atins numarul le astept sa iasa decrementand dupa ce fiecare masina iese
+
+
+Problema 3 (simple_strict_1_car_roundabout) :
+
+- Ideea de rezolvare a fost un vector de semafoare de genul [1,0,0,0,0,0..], in care fiecare "lane" in parte da drumu urmatorului semafor.
+Cand s-a terminat o iteratie, inseamna ca s-au bagat in sens fix 1 din fiecare sens.
+
+
+Problema 4 (simple_strict_x_roundabout) :
+
+- Pe acelasi principiu, doar ca acum oprim intr-o bariera numarul maxim de masini X numarul de sensuri, ca sa ne asiguram ca ajung in bariera strict X din fiecare.
+Dupa ce fiecare intra in sens le astept sa iasa, si vor face release pe semaforul de inceput tot cu numarul maxim de masini permise X numarul de sensuri, si algoritmul continua.
+
+
+Problema 5 (simple_max_x_roundabout) :
+
+- 90% cu pasii de mai sus, doar ca de data asta am eliminat barierele care asteptau un numar fix de masini sa intre, de data asta numarul lor fiind variabil, deci neputand fi prins 
+intr-o bariera, dar controrizat sa nu depaseasca, asa cum cere cerinta, acel X. Contorizarea se face prin faptul ca semaforul initial permite fix X intrari, astfel ca nu se poate depasi fizic.
+
+
+
+Problema 6 (priority_intersection) :
+- Am creat un semafor cu numarul de intrari egal cu numarul de masini cu prioritate.
+	Masinile fara prioritate pot sa treaca doar daca numarul de permits din semafor este intact (daca nu avem masini cu prioritate in sens).
+	Masinile fara prioritate sunt fitrate printr un semafor cu fairness setat 1 pentru a ne asigura ordinea venirii lor.
+
+
+
+Problema 7 (crosswalk) :
+- Am tinut "ultimul mesaj" ca enum: GOT_GREEN, GOT_RED, si asa stiu mereu ce s-a intamplat ultima oara cu masina.
+algoritmul este simplu, ca in descrierea taskului: cat timp nu au terminat pietonii, masinile stau in while. daca statusul difera de cel vechi il updatam.
+Daca toate au avut verde si pietonii au terminat, pot parasi sensul.
+
+Problema 8 (simple_maintenance) :
+- Exact ca la exercitiile strict_1 si strict_x am un semafor cu N masini care sa treaca dintr-un sens, le astept pe toate, aleg un leadingThread care sa dea drumu benzii celeilalte
+cu exact N intrari in semafor, ca sa poata veni si din celelalt sens tot N masini si tot asa pana termina toate.
+
+Problema 9 (complex_maintenance) :
+- Problema complexa a temei, pentru a putea fi realizata corect, in care fiecare thread isi face treaba sincronizat, si nu exista un singur thread care le orchestreaza pe celelalte:
+
+Am creat structura de NewLane :
+    private final Integer ID;  // ce ma va ajuta sa identific un lane intr-un vector de semafoare
+    private volatile List<Integer> oldLanesDirections;  // va contine old-lane-urile asignate acestui NewLane
+    private HashMap<Integer, List<Car>> oldLanes;       // va contine efectiv listele de masini asignate fiecarui old-lane in parte
+    private AtomicInteger numberOfCarsAccesed = new AtomicInteger(0);   // Ca sa stiu atunci cand X masini au trecut 
+
+
+Astfel ca, privind de sus, am o lista de astfel de benzi noi (List<NewLane>) 
+
+Primul lucru, pe masura ce masinila ajung pe benzi (se da start la thread) populez datele in NewLane-uri, facand impartirea benzilor vechi la noile benzi, si populand datele cu masinile care unde vor apartine.
+Am o bariera care asteapta absolut toate masinile sa fi trecut prin pasul asta (adica sa fiu sigur ca s-au creat toate NewLane urile complet)
+
+Pentru a asigura ca iau alternativ prima lista din fiecare NewLane in parte, am cate un semafor pt fiecare NewLane in parte, bazat pe index-ul ID ului pe care l-am introdus in structura.
+
+Apoi, intru intr-o bucla de while (cat timp nu mi s-au golit toate benzile) si trimit cate o masina din fiecare lista in parte sa intre in sens.
+
+In interiorul clasei NewLane, am o metoda numita PassCar care preia toata logica atunci cand masina intra in miscare:
+
+Daca directia din care vine, difera de directia de pe pozitia 0 in lista de directii ( adica nu e randul meu sa merg ), ies din metoda dar raman in while pana imi vine iar randul
+
+Daca masina intra, fac verificarile cerute in enunt, daca se atinge numarul N, si mai raman masini in lista, le mut la final, daca nu, sterg directia din lista de directii.
+
+return null = masina poate parasi pentru ca banda s-a golit 
+return false = masina trebuie sa ramana in bucla ca nu e randu ei
+return true = masina poate parasi pt ca a trecut pur si simplu (cazul simplu)
+
+
+
+Problema 10 (railroad) :
+- Din nou masinile sunt filtrate printr-un semafor fair pentru a le pastra ordinea.
+Se alege un leadThread care sa ridice bariera trenului
+Fiecare thread va pleca din loc cand ii va veni randul (bazat pe o colectie sincronizata, cand threadul se va afla pe pozitia 0 din lista, inseamna ca e semnalul lui sa plece, urmand sa dea voie unui alt thread 
+prin scoaterea lui din colectie, si tot asa)
